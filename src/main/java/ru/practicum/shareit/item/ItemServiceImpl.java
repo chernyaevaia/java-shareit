@@ -32,7 +32,7 @@ public class ItemServiceImpl implements ItemService {
     @Override
     public ItemDto update(Long userId, Long itemId, ItemDto itemDto) {
         Item existingItem = itemRepository.getById(itemId);
-        
+
         if (!existingItem.getOwner().getId().equals(userId)) {
             throw new NotFoundException("Item not found for this user");
         }

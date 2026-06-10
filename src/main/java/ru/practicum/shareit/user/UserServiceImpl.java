@@ -2,7 +2,6 @@ package ru.practicum.shareit.user;
 
 import org.springframework.stereotype.Service;
 import ru.practicum.shareit.exception.ConflictException;
-import ru.practicum.shareit.exception.ValidationException;
 import ru.practicum.shareit.user.dto.UserDto;
 import ru.practicum.shareit.user.model.User;
 
@@ -27,7 +26,7 @@ public class UserServiceImpl implements UserService {
     @Override
     public UserDto update(Long id, UserDto userDto) {
         User existingUser = userRepository.getById(id);
-        
+
         if (userDto.getEmail() != null && !userDto.getEmail().equals(existingUser.getEmail())) {
             validateEmail(userDto.getEmail(), id);
             existingUser.setEmail(userDto.getEmail());
@@ -35,7 +34,7 @@ public class UserServiceImpl implements UserService {
         if (userDto.getName() != null) {
             existingUser.setName(userDto.getName());
         }
-        
+
         User updated = userRepository.update(existingUser);
         return UserMapper.toUserDto(updated);
     }
