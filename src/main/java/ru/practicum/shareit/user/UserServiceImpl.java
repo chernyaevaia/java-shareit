@@ -4,7 +4,7 @@ import org.springframework.stereotype.Service;
 import ru.practicum.shareit.exception.ConflictException;
 import ru.practicum.shareit.user.dto.UserDto;
 import ru.practicum.shareit.user.model.User;
-
+import ru.practicum.shareit.exception.ValidationException;
 import java.util.List;
 import java.util.stream.Collectors;
 
