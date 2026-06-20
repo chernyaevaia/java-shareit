@@ -21,7 +21,9 @@ import ru.practicum.shareit.user.model.User;
 
 import java.time.LocalDateTime;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -37,8 +39,7 @@ public class ItemServiceImpl implements ItemService {
     @Override
     public ItemDto create(Long userId, ItemDto itemDto) {
         log.info("Creating item for user with id={}", userId);
-        User owner = userRepository.findById(userId)
-                .orElseThrow(() -> new NotFoundException("User not found with id: " + userId));
+        User owner = getUserOrThrow(userId);
 
         Item item = ItemMapper.toItem(itemDto);
         item.setOwner(owner);
@@ -51,8 +52,7 @@ public class ItemServiceImpl implements ItemService {
     @Override
     public ItemDto update(Long userId, Long itemId, ItemDto itemDto) {
         log.info("Updating item id={} for user id={}", itemId, userId);
-        Item existing = itemRepository.findById(itemId)
-                .orElseThrow(() -> new NotFoundException("Item not found with id: " + itemId));
+        Item existing = getItemOrThrow(itemId);
 
         if (!existing.getOwner().getId().equals(userId)) {
             throw new ForbiddenException(
@@ -76,8 +76,7 @@ public class ItemServiceImpl implements ItemService {
     @Override
     public ItemDto getById(Long itemId, Long userId) {
         log.info("Fetching item id={} for user id={}", itemId, userId);
-        Item item = itemRepository.findById(itemId)
-                .orElseThrow(() -> new NotFoundException("Item not found with id: " + itemId));
+        Item item = getItemOrThrow(itemId);
 
         ItemDto dto = ItemMapper.toItemDto(item);
         dto.setComments(loadComments(itemId));
@@ -91,14 +90,53 @@ public class ItemServiceImpl implements ItemService {
     @Override
     public List<ItemDto> getAllByOwner(Long userId) {
         log.info("Fetching all items for owner id={}", userId);
-        userRepository.findById(userId)
-                .orElseThrow(() -> new NotFoundException("User not found with id: " + userId));
+        getUserOrThrow(userId);
 
-        return itemRepository.findAllByOwnerIdOrderByIdAsc(userId).stream()
+        List<Item> items = itemRepository.findAllByOwnerIdOrderByIdAsc(userId);
+        if (items.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<Long> itemIds = items.stream()
+                .map(Item::getId)
+                .collect(Collectors.toList());
+
+        List<Booking> allBookings = bookingRepository.findAllByItemIdInAndStatus(itemIds, BookingStatus.APPROVED);
+        Map<Long, List<Booking>> bookingsByItem = allBookings.stream()
+                .collect(Collectors.groupingBy(b -> b.getItem().getId()));
+
+        List<Comment> allComments = commentRepository.findAllByItemIdIn(itemIds);
+        Map<Long, List<Comment>> commentsByItem = allComments.stream()
+                .collect(Collectors.groupingBy(c -> c.getItem().getId()));
+
+        LocalDateTime now = LocalDateTime.now();
+
+        return items.stream()
                 .map(item -> {
                     ItemDto dto = ItemMapper.toItemDto(item);
-                    fillBookingsForOwner(dto, item.getId());
-                    dto.setComments(loadComments(item.getId()));
+
+                    List<Booking> itemBookings = bookingsByItem.getOrDefault(item.getId(), Collections.emptyList());
+
+                    Booking lastBooking = itemBookings.stream()
+                            .filter(b -> !b.getStart().isAfter(now))
+                            .max(Comparator.comparing(Booking::getStart))
+                            .orElse(null);
+
+                    Booking nextBooking = itemBookings.stream()
+                            .filter(b -> b.getStart().isAfter(now))
+                            .min(Comparator.comparing(Booking::getStart))
+                            .orElse(null);
+
+                    if (lastBooking != null) {
+                        dto.setLastBooking(BookingMapper.toBookingShortDto(lastBooking));
+                    }
+                    if (nextBooking != null) {
+                        dto.setNextBooking(BookingMapper.toBookingShortDto(nextBooking));
+                    }
+
+                    List<Comment> itemComments = commentsByItem.getOrDefault(item.getId(), Collections.emptyList());
+                    dto.setComments(itemComments.stream().map(CommentMapper::toDto).collect(Collectors.toList()));
+
                     return dto;
                 })
                 .collect(Collectors.toList());
@@ -119,10 +157,8 @@ public class ItemServiceImpl implements ItemService {
     public CommentDto addComment(Long userId, Long itemId, CommentRequestDto dto) {
         log.info("Adding comment by user id={} to item id={}", userId, itemId);
 
-        User author = userRepository.findById(userId)
-                .orElseThrow(() -> new NotFoundException("User not found with id: " + userId));
-        Item item = itemRepository.findById(itemId)
-                .orElseThrow(() -> new NotFoundException("Item not found with id: " + itemId));
+        User author = getUserOrThrow(userId);
+        Item item = getItemOrThrow(itemId);
 
         boolean hasPastBooking = bookingRepository
                 .existsByBookerIdAndItemIdAndStatusAndEndBefore(
@@ -133,11 +169,7 @@ public class ItemServiceImpl implements ItemService {
                     "User id=" + userId + " did not rent item id=" + itemId + " before, comment not allowed");
         }
 
-        Comment comment = new Comment();
-        comment.setText(dto.getText());
-        comment.setItem(item);
-        comment.setAuthor(author);
-        comment.setCreated(LocalDateTime.now());
+        Comment comment = CommentMapper.toComment(dto, item, author);
 
         Comment saved = commentRepository.save(comment);
         log.debug("Comment id={} added to item id={}", saved.getId(), itemId);
@@ -165,5 +197,15 @@ public class ItemServiceImpl implements ItemService {
         return commentRepository.findAllByItemIdOrderByCreatedDesc(itemId).stream()
                 .map(CommentMapper::toDto)
                 .collect(Collectors.toList());
+    }
+
+    private User getUserOrThrow(Long userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("User not found with id: " + userId));
+    }
+
+    private Item getItemOrThrow(Long itemId) {
+        return itemRepository.findById(itemId)
+                .orElseThrow(() -> new NotFoundException("Item not found with id: " + itemId));
     }
 }
