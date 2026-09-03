@@ -96,6 +96,74 @@ class BookingControllerTest {
                 .andExpect(jsonPath("$[0].id").value(1));
     }
 
+    @Test
+void create_withInvalidRequestBody_shouldReturn400() throws Exception {
+    BookingRequestDto request = new BookingRequestDto();
+    // Missing required fields
+
+    mvc.perform(post("/bookings")
+                    .header(USER_HEADER, 1L)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(mapper.writeValueAsString(request)))
+            .andExpect(status().isBadRequest());
+}
+
+@Test
+void create_withoutUserHeader_shouldReturn400() throws Exception {
+    BookingRequestDto request = new BookingRequestDto();
+    request.setItemId(1L);
+    request.setStart(LocalDateTime.now().plusDays(1));
+    request.setEnd(LocalDateTime.now().plusDays(2));
+
+    mvc.perform(post("/bookings")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(mapper.writeValueAsString(request)))
+            .andExpect(status().isBadRequest());
+}
+
+@Test
+void approve_withoutApprovedParam_shouldReturn400() throws Exception {
+    mvc.perform(patch("/bookings/1")
+                    .header(USER_HEADER, 1L))
+            .andExpect(status().isBadRequest());
+}
+
+@Test
+void getById_withoutUserHeader_shouldReturn400() throws Exception {
+    mvc.perform(get("/bookings/1"))
+            .andExpect(status().isBadRequest());
+}
+
+@Test
+void getAllByBooker_withDefaultState_shouldUseAll() throws Exception {
+    when(bookingService.getAllByBooker(1L, BookingState.ALL))
+            .thenReturn(List.of(makeBookingDto()));
+
+    mvc.perform(get("/bookings")
+                    .header(USER_HEADER, 1L))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].id").value(1));
+}
+
+@Test
+void getAllByOwner_withDefaultState_shouldUseAll() throws Exception {
+    when(bookingService.getAllByOwner(1L, BookingState.ALL))
+            .thenReturn(List.of(makeBookingDto()));
+
+    mvc.perform(get("/bookings/owner")
+                    .header(USER_HEADER, 1L))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].id").value(1));
+}
+
+@Test
+void getAllByBooker_withInvalidState_shouldReturn400() throws Exception {
+    mvc.perform(get("/bookings")
+                    .header(USER_HEADER, 1L)
+                    .param("state", "INVALID"))
+            .andExpect(status().isBadRequest());
+}
+
     private BookingDto makeBookingDto() {
         BookingDto dto = new BookingDto();
         dto.setId(1L);

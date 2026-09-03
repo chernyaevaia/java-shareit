@@ -65,6 +65,59 @@ class BookingServiceImplIntegrationTest {
         assertThat(bookings.get(0).getBooker().getId()).isEqualTo(booker.getId());
     }
 
+    @Test
+void approve_shouldApproveBooking() {
+    User owner = saveUser("owner3", "owner3@example.com");
+    User booker = saveUser("booker3", "booker3@example.com");
+    Item item = saveItem(owner);
+
+    BookingRequestDto dto = new BookingRequestDto();
+    dto.setItemId(item.getId());
+    dto.setStart(LocalDateTime.now().plusDays(1));
+    dto.setEnd(LocalDateTime.now().plusDays(2));
+    BookingDto created = bookingService.create(booker.getId(), dto);
+
+    BookingDto approved = bookingService.approve(owner.getId(), created.getId(), true);
+
+    assertThat(approved.getStatus()).isEqualTo(BookingStatus.APPROVED);
+}
+
+@Test
+void getById_shouldReturnBooking() {
+    User owner = saveUser("owner4", "owner4@example.com");
+    User booker = saveUser("booker4", "booker4@example.com");
+    Item item = saveItem(owner);
+
+    BookingRequestDto dto = new BookingRequestDto();
+    dto.setItemId(item.getId());
+    dto.setStart(LocalDateTime.now().plusDays(1));
+    dto.setEnd(LocalDateTime.now().plusDays(2));
+    BookingDto created = bookingService.create(booker.getId(), dto);
+
+    BookingDto found = bookingService.getById(booker.getId(), created.getId());
+
+    assertThat(found.getId()).isEqualTo(created.getId());
+    assertThat(found.getBooker().getId()).isEqualTo(booker.getId());
+}
+
+@Test
+void getAllByOwner_shouldReturnBookings() {
+    User owner = saveUser("owner5", "owner5@example.com");
+    User booker = saveUser("booker5", "booker5@example.com");
+    Item item = saveItem(owner);
+
+    BookingRequestDto dto = new BookingRequestDto();
+    dto.setItemId(item.getId());
+    dto.setStart(LocalDateTime.now().plusDays(1));
+    dto.setEnd(LocalDateTime.now().plusDays(2));
+    bookingService.create(booker.getId(), dto);
+
+    List<BookingDto> bookings = bookingService.getAllByOwner(owner.getId(), BookingState.ALL);
+
+    assertThat(bookings).hasSize(1);
+    assertThat(bookings.get(0).getItem().getId()).isEqualTo(item.getId());
+}
+
     private User saveUser(String name, String email) {
         User user = new User();
         user.setName(name);

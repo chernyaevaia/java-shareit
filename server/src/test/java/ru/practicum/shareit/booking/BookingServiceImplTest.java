@@ -359,6 +359,127 @@ class BookingServiceImplTest {
         verify(bookingRepository).findAllByItemOwnerIdAndStatusOrderByStartDesc(anyLong(), any());
     }
 
+    @Test
+void create_itemWithNullAvailable_shouldThrowValidation() {
+    User booker = makeUser(2L);
+    Item item = makeItem(1L, makeUser(1L));
+    item.setAvailable(null);  // Null availability
+
+    when(userRepository.findById(2L)).thenReturn(Optional.of(booker));
+    when(itemRepository.findById(1L)).thenReturn(Optional.of(item));
+
+    assertThatThrownBy(() -> bookingService.create(2L, makeRequest(1L)))
+            .isInstanceOf(ValidationException.class)
+            .hasMessageContaining("Item is not available");
+}
+
+@Test
+void approve_alreadyRejected_shouldThrowValidation() {
+    User owner = makeUser(1L);
+    User booker = makeUser(2L);
+    Item item = makeItem(1L, owner);
+    Booking booking = makeBooking(1L, BookingStatus.REJECTED, item, booker);
+
+    when(bookingRepository.findById(1L)).thenReturn(Optional.of(booking));
+
+    assertThatThrownBy(() -> bookingService.approve(1L, 1L, true))
+            .isInstanceOf(ValidationException.class)
+            .hasMessageContaining("Booking status is already REJECTED");
+}
+
+@Test
+void approve_withNullApproved_shouldThrowException() {
+    User owner = makeUser(1L);
+    User booker = makeUser(2L);
+    Item item = makeItem(1L, owner);
+    Booking booking = makeBooking(1L, BookingStatus.WAITING, item, booker);
+
+    when(bookingRepository.findById(1L)).thenReturn(Optional.of(booking));
+
+    // Null approved will cause NPE when trying to evaluate ternary
+    assertThatThrownBy(() -> bookingService.approve(1L, 1L, null))
+            .isInstanceOf(NullPointerException.class);
+}
+
+@Test
+void getById_bookingNotFound_shouldThrowNotFound() {
+    when(bookingRepository.findById(99L)).thenReturn(Optional.empty());
+
+    assertThatThrownBy(() -> bookingService.getById(1L, 99L))
+            .isInstanceOf(NotFoundException.class)
+            .hasMessageContaining("Booking not found with id: 99");
+}
+
+@Test
+void getAllByBooker_userNotFound_shouldThrowNotFound() {
+    when(userRepository.findById(99L)).thenReturn(Optional.empty());
+
+    assertThatThrownBy(() -> bookingService.getAllByBooker(99L, BookingState.ALL))
+            .isInstanceOf(NotFoundException.class)
+            .hasMessageContaining("User not found with id: 99");
+}
+
+@Test
+void getAllByOwner_userNotFound_shouldThrowNotFound() {
+    when(userRepository.findById(99L)).thenReturn(Optional.empty());
+
+    assertThatThrownBy(() -> bookingService.getAllByOwner(99L, BookingState.ALL))
+            .isInstanceOf(NotFoundException.class)
+            .hasMessageContaining("User not found with id: 99");
+}
+
+@Test
+void create_withNullStartTime_shouldThrowValidation() {
+    User booker = makeUser(2L);
+    Item item = makeItem(1L, makeUser(1L));
+
+    when(userRepository.findById(2L)).thenReturn(Optional.of(booker));
+    when(itemRepository.findById(1L)).thenReturn(Optional.of(item));
+
+    BookingRequestDto dto = makeRequest(1L);
+    dto.setStart(null);
+
+    assertThatThrownBy(() -> bookingService.create(2L, dto))
+            .isInstanceOf(NullPointerException.class);
+}
+
+@Test
+void create_withNullEndTime_shouldThrowValidation() {
+    User booker = makeUser(2L);
+    Item item = makeItem(1L, makeUser(1L));
+
+    when(userRepository.findById(2L)).thenReturn(Optional.of(booker));
+    when(itemRepository.findById(1L)).thenReturn(Optional.of(item));
+
+    BookingRequestDto dto = makeRequest(1L);
+    dto.setEnd(null);
+
+    assertThatThrownBy(() -> bookingService.create(2L, dto))
+            .isInstanceOf(NullPointerException.class);
+}
+
+@Test
+void create_bookingWithPastStartTime_shouldCreateSuccessfully() {
+    User owner = makeUser(1L);
+    User booker = makeUser(2L);
+    Item item = makeItem(1L, owner);
+    
+    BookingRequestDto dto = makeRequest(1L);
+    dto.setStart(LocalDateTime.now().minusDays(2));
+    dto.setEnd(LocalDateTime.now().minusDays(1));
+    
+    Booking booking = makeBooking(1L, BookingStatus.WAITING, item, booker);
+
+    when(userRepository.findById(2L)).thenReturn(Optional.of(booker));
+    when(itemRepository.findById(1L)).thenReturn(Optional.of(item));
+    when(bookingRepository.save(any())).thenReturn(booking);
+
+    BookingDto result = bookingService.create(2L, dto);
+
+    assertThat(result).isNotNull();
+    assertThat(result.getStatus()).isEqualTo(BookingStatus.WAITING);
+}
+
 
     private User makeUser(Long id) {
         User u = new User();
