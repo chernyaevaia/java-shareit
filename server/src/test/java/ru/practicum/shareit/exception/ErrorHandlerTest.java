@@ -119,10 +119,10 @@ class ErrorHandlerTest {
     @Test
     void errorResponse_shouldBeImmutable() {
         ErrorResponse response = errorHandler.handleNotFoundException(new NotFoundException("Test"));
-        
+    
         assertThat(response.getError()).isNotNull();
         assertThat(response.getDescription()).isNotNull();
-        
+    
         assertThat(response.toString()).contains("Not found");
     }
 }
