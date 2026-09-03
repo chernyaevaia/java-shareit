@@ -463,13 +463,11 @@ void create_bookingWithPastStartTime_shouldCreateSuccessfully() {
     User owner = makeUser(1L);
     User booker = makeUser(2L);
     Item item = makeItem(1L, owner);
-    
     BookingRequestDto dto = makeRequest(1L);
     dto.setStart(LocalDateTime.now().minusDays(2));
     dto.setEnd(LocalDateTime.now().minusDays(1));
     
     Booking booking = makeBooking(1L, BookingStatus.WAITING, item, booker);
-
     when(userRepository.findById(2L)).thenReturn(Optional.of(booker));
     when(itemRepository.findById(1L)).thenReturn(Optional.of(item));
     when(bookingRepository.save(any())).thenReturn(booking);
