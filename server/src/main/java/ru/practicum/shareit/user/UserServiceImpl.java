@@ -7,7 +7,6 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import ru.practicum.shareit.exception.ConflictException;
 import ru.practicum.shareit.exception.NotFoundException;
-import ru.practicum.shareit.exception.ValidationException;
 import ru.practicum.shareit.user.dto.UserDto;
 import ru.practicum.shareit.user.model.User;
 
@@ -24,7 +23,7 @@ public class UserServiceImpl implements UserService {
     @Override
     public UserDto create(UserDto userDto) {
         log.info("Creating user with email={}", userDto.getEmail());
-        validateEmail(userDto.getEmail(), null);
+        checkEmailUniqueness(userDto.getEmail(), null);
 
         User user = new User();
         user.setName(userDto.getName());
@@ -47,10 +46,10 @@ public class UserServiceImpl implements UserService {
                 .orElseThrow(() -> new NotFoundException("User not found with id: " + id));
 
         if (userDto.getEmail() != null && !userDto.getEmail().equals(existing.getEmail())) {
-            validateEmail(userDto.getEmail(), id);
+            checkEmailUniqueness(userDto.getEmail(), id);
             existing.setEmail(userDto.getEmail());
         }
-        if (userDto.getName() != null && !userDto.getName().isBlank()) {
+        if (userDto.getName() != null) {
             existing.setName(userDto.getName());
         }
 
@@ -86,10 +85,7 @@ public class UserServiceImpl implements UserService {
         userRepository.deleteById(id);
     }
 
-    private void validateEmail(String email, Long excludeId) {
-        if (email == null || email.isBlank() || !email.contains("@")) {
-            throw new ValidationException("Invalid email format");
-        }
+    private void checkEmailUniqueness(String email, Long excludeId) {
         if (userRepository.existsByEmailExcludingId(email, excludeId)) {
             throw new ConflictException("Email already exists: " + email);
         }

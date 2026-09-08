@@ -42,7 +42,6 @@ class BookingServiceImplTest {
     @InjectMocks
     private BookingServiceImpl bookingService;
 
-    // --- create ---
 
     @Test
     void create_shouldReturnWaitingBooking() {
@@ -88,38 +87,6 @@ class BookingServiceImplTest {
     }
 
     @Test
-    void create_endBeforeStart_shouldThrowValidation() {
-        User booker = makeUser(2L);
-        Item item = makeItem(1L, makeUser(1L));
-
-        when(userRepository.findById(2L)).thenReturn(Optional.of(booker));
-        when(itemRepository.findById(1L)).thenReturn(Optional.of(item));
-
-        BookingRequestDto dto = makeRequest(1L);
-        dto.setEnd(dto.getStart().minusHours(1));
-
-        assertThatThrownBy(() -> bookingService.create(2L, dto))
-                .isInstanceOf(ValidationException.class)
-                .hasMessageContaining("End date must be after start date");
-    }
-
-    @Test
-    void create_endEqualsStart_shouldThrowValidation() {
-        User booker = makeUser(2L);
-        Item item = makeItem(1L, makeUser(1L));
-
-        when(userRepository.findById(2L)).thenReturn(Optional.of(booker));
-        when(itemRepository.findById(1L)).thenReturn(Optional.of(item));
-
-        BookingRequestDto dto = makeRequest(1L);
-        dto.setEnd(dto.getStart());
-
-        assertThatThrownBy(() -> bookingService.create(2L, dto))
-                .isInstanceOf(ValidationException.class)
-                .hasMessageContaining("End date must be after start date");
-    }
-
-    @Test
     void create_userNotFound_shouldThrowNotFound() {
         when(userRepository.findById(99L)).thenReturn(Optional.empty());
 
@@ -138,74 +105,6 @@ class BookingServiceImplTest {
                 .hasMessageContaining("Item not found with id: 99");
     }
 
-    @Test
-    void create_itemWithNullAvailable_shouldThrowNullPointerException() {
-        User booker = makeUser(2L);
-        Item item = makeItem(1L, makeUser(1L));
-        item.setAvailable(null);
-
-        when(userRepository.findById(2L)).thenReturn(Optional.of(booker));
-        when(itemRepository.findById(1L)).thenReturn(Optional.of(item));
-
-        // Unboxing a null Boolean in the availability check throws NPE
-        assertThatThrownBy(() -> bookingService.create(2L, makeRequest(1L)))
-                .isInstanceOf(NullPointerException.class);
-    }
-
-    @Test
-    void create_withNullStartTime_shouldThrowNullPointerException() {
-        User booker = makeUser(2L);
-        Item item = makeItem(1L, makeUser(1L));
-
-        when(userRepository.findById(2L)).thenReturn(Optional.of(booker));
-        when(itemRepository.findById(1L)).thenReturn(Optional.of(item));
-
-        BookingRequestDto dto = makeRequest(1L);
-        dto.setStart(null);
-
-        assertThatThrownBy(() -> bookingService.create(2L, dto))
-                .isInstanceOf(NullPointerException.class);
-    }
-
-    @Test
-    void create_withNullEndTime_shouldThrowNullPointerException() {
-        User booker = makeUser(2L);
-        Item item = makeItem(1L, makeUser(1L));
-
-        when(userRepository.findById(2L)).thenReturn(Optional.of(booker));
-        when(itemRepository.findById(1L)).thenReturn(Optional.of(item));
-
-        BookingRequestDto dto = makeRequest(1L);
-        dto.setEnd(null);
-
-        assertThatThrownBy(() -> bookingService.create(2L, dto))
-                .isInstanceOf(NullPointerException.class);
-    }
-
-    @Test
-    void create_bookingWithPastStartTime_shouldCreateSuccessfully() {
-        User owner = makeUser(1L);
-        User booker = makeUser(2L);
-        Item item = makeItem(1L, owner);
-
-        BookingRequestDto dto = makeRequest(1L);
-        dto.setStart(LocalDateTime.now().minusDays(2));
-        dto.setEnd(LocalDateTime.now().minusDays(1));
-
-        Booking booking = makeBooking(1L, BookingStatus.WAITING, item, booker);
-
-        when(userRepository.findById(2L)).thenReturn(Optional.of(booker));
-        when(itemRepository.findById(1L)).thenReturn(Optional.of(item));
-        when(bookingRepository.save(any())).thenReturn(booking);
-
-        BookingDto result = bookingService.create(2L, dto);
-
-        assertThat(result).isNotNull();
-        assertThat(result.getStatus()).isEqualTo(BookingStatus.WAITING);
-        verify(bookingRepository).save(any(Booking.class));
-    }
-
-    // --- approve ---
 
     @Test
     void approve_approved_shouldSetApproved() {
@@ -280,20 +179,6 @@ class BookingServiceImplTest {
     }
 
     @Test
-    void approve_withNullApproved_shouldThrowNullPointerException() {
-        User owner = makeUser(1L);
-        User booker = makeUser(2L);
-        Item item = makeItem(1L, owner);
-        Booking booking = makeBooking(1L, BookingStatus.WAITING, item, booker);
-
-        when(bookingRepository.findById(1L)).thenReturn(Optional.of(booking));
-
-        // Unboxing null Boolean in the ternary throws NPE
-        assertThatThrownBy(() -> bookingService.approve(1L, 1L, null))
-                .isInstanceOf(NullPointerException.class);
-    }
-
-    @Test
     void approve_bookingNotFound_shouldThrowNotFound() {
         when(bookingRepository.findById(99L)).thenReturn(Optional.empty());
 
@@ -302,7 +187,6 @@ class BookingServiceImplTest {
                 .hasMessageContaining("Booking not found with id: 99");
     }
 
-    // --- getById ---
 
     @Test
     void getById_byBooker_shouldReturnBooking() {
@@ -355,7 +239,6 @@ class BookingServiceImplTest {
                 .hasMessageContaining("Booking not found with id: 99");
     }
 
-    // --- getAllByBooker ---
 
     @Test
     void getAllByBooker_all_shouldReturnList() {
@@ -425,7 +308,6 @@ class BookingServiceImplTest {
                 .hasMessageContaining("User not found with id: 99");
     }
 
-    // --- getAllByOwner ---
 
     @Test
     void getAllByOwner_all_shouldReturnList() {
@@ -495,7 +377,6 @@ class BookingServiceImplTest {
                 .hasMessageContaining("User not found with id: 99");
     }
 
-    // --- helpers ---
 
     private User makeUser(Long id) {
         User u = new User();

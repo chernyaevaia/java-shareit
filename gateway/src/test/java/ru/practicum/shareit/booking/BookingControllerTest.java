@@ -9,10 +9,12 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.web.servlet.MockMvc;
 import ru.practicum.shareit.booking.dto.BookingRequestDto;
+import ru.practicum.shareit.booking.dto.BookingState;
 
 import java.time.LocalDateTime;
 
 import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -86,6 +88,45 @@ class BookingControllerTest {
     }
 
     @Test
+    void create_endBeforeStart_shouldReturn400_withoutCallingClient() throws Exception {
+        BookingRequestDto dto = makeValidBooking();
+        dto.setStart(LocalDateTime.now().plusDays(2));
+        dto.setEnd(LocalDateTime.now().plusDays(1));
+
+        mvc.perform(post("/bookings")
+                        .header(HEADER, 1L)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(dto)))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(bookingClient);
+    }
+
+    @Test
+    void create_endEqualsStart_shouldReturn400() throws Exception {
+        BookingRequestDto dto = makeValidBooking();
+        dto.setEnd(dto.getStart());
+
+        mvc.perform(post("/bookings")
+                        .header(HEADER, 1L)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(dto)))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(bookingClient);
+    }
+
+    @Test
+    void create_missingHeader_shouldReturn400() throws Exception {
+        mvc.perform(post("/bookings")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(makeValidBooking())))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(bookingClient);
+    }
+
+    @Test
     void approve_shouldReturn200() throws Exception {
         when(bookingClient.approve(anyLong(), anyLong(), anyBoolean()))
                 .thenReturn(ResponseEntity.ok().build());
@@ -105,8 +146,8 @@ class BookingControllerTest {
     }
 
     @Test
-    void getAllByBooker_shouldReturn200() throws Exception {
-        when(bookingClient.getAllByBooker(anyLong(), anyString(), anyInt(), anyInt()))
+    void getAllByBooker_shouldReturn200_andPassParsedState() throws Exception {
+        when(bookingClient.getAllByBooker(anyLong(), any(BookingState.class), anyInt(), anyInt()))
                 .thenReturn(ResponseEntity.ok().build());
 
         mvc.perform(get("/bookings")
@@ -115,6 +156,33 @@ class BookingControllerTest {
                         .param("from", "0")
                         .param("size", "10"))
                 .andExpect(status().isOk());
+
+        verify(bookingClient).getAllByBooker(1L, BookingState.ALL, 0, 10);
+    }
+
+    @Test
+    void getAllByBooker_lowerCaseState_shouldBeAccepted() throws Exception {
+        when(bookingClient.getAllByBooker(anyLong(), any(BookingState.class), anyInt(), anyInt()))
+                .thenReturn(ResponseEntity.ok().build());
+
+        mvc.perform(get("/bookings")
+                        .header(HEADER, 1L)
+                        .param("state", "current"))
+                .andExpect(status().isOk());
+
+        verify(bookingClient).getAllByBooker(1L, BookingState.CURRENT, 0, 10);
+    }
+
+    @Test
+    void getAllByBooker_unknownState_shouldReturn400_withoutCallingClient() throws Exception {
+        mvc.perform(get("/bookings")
+                        .header(HEADER, 1L)
+                        .param("state", "UNSUPPORTED")
+                        .param("from", "0")
+                        .param("size", "10"))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(bookingClient);
     }
 
     @Test
@@ -130,7 +198,7 @@ class BookingControllerTest {
 
     @Test
     void getAllByOwner_shouldReturn200() throws Exception {
-        when(bookingClient.getAllByOwner(anyLong(), anyString(), anyInt(), anyInt()))
+        when(bookingClient.getAllByOwner(anyLong(), any(BookingState.class), anyInt(), anyInt()))
                 .thenReturn(ResponseEntity.ok().build());
 
         mvc.perform(get("/bookings/owner")
@@ -139,6 +207,16 @@ class BookingControllerTest {
                         .param("from", "0")
                         .param("size", "10"))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    void getAllByOwner_unknownState_shouldReturn400() throws Exception {
+        mvc.perform(get("/bookings/owner")
+                        .header(HEADER, 1L)
+                        .param("state", "WRONG"))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(bookingClient);
     }
 
     @Test

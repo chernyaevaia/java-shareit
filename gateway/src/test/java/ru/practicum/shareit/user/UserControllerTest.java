@@ -10,8 +10,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.test.web.servlet.MockMvc;
 import ru.practicum.shareit.user.dto.UserDto;
 
+import java.util.Map;
+
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -28,6 +31,7 @@ class UserControllerTest {
     @MockBean
     private UserClient userClient;
 
+
     @Test
     void create_valid_shouldReturn200() throws Exception {
         when(userClient.create(any())).thenReturn(ResponseEntity.ok().build());
@@ -39,7 +43,7 @@ class UserControllerTest {
     }
 
     @Test
-    void create_blankName_shouldReturn400() throws Exception {
+    void create_blankName_shouldReturn400_withoutCallingClient() throws Exception {
         UserDto dto = makeValidUser();
         dto.setName("");
 
@@ -47,10 +51,25 @@ class UserControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(dto)))
                 .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(userClient);
     }
 
     @Test
-    void create_invalidEmail_shouldReturn400() throws Exception {
+    void create_nullEmail_shouldReturn400_withoutCallingClient() throws Exception {
+        UserDto dto = makeValidUser();
+        dto.setEmail(null);
+
+        mvc.perform(post("/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(dto)))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(userClient);
+    }
+
+    @Test
+    void create_invalidEmail_shouldReturn400_withoutCallingClient() throws Exception {
         UserDto dto = makeValidUser();
         dto.setEmail("not-an-email");
 
@@ -58,10 +77,12 @@ class UserControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(dto)))
                 .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(userClient);
     }
 
     @Test
-    void update_shouldReturn200() throws Exception {
+    void update_valid_shouldReturn200() throws Exception {
         when(userClient.update(anyLong(), any())).thenReturn(ResponseEntity.ok().build());
 
         mvc.perform(patch("/users/1")
@@ -69,6 +90,57 @@ class UserControllerTest {
                         .content(mapper.writeValueAsString(makeValidUser())))
                 .andExpect(status().isOk());
     }
+
+    @Test
+    void update_onlyName_shouldReturn200() throws Exception {
+        when(userClient.update(anyLong(), any())).thenReturn(ResponseEntity.ok().build());
+
+        mvc.perform(patch("/users/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(Map.of("name", "John Updated"))))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void update_onlyEmail_shouldReturn200() throws Exception {
+        when(userClient.update(anyLong(), any())).thenReturn(ResponseEntity.ok().build());
+
+        mvc.perform(patch("/users/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(Map.of("email", "new@mail.com"))))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void update_invalidEmail_shouldReturn400_withoutCallingClient() throws Exception {
+        mvc.perform(patch("/users/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(Map.of("email", "not-an-email"))))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(userClient);
+    }
+
+    @Test
+    void update_blankEmail_shouldReturn400_withoutCallingClient() throws Exception {
+        mvc.perform(patch("/users/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(Map.of("email", "   "))))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(userClient);
+    }
+
+    @Test
+    void update_blankName_shouldReturn400_withoutCallingClient() throws Exception {
+        mvc.perform(patch("/users/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(Map.of("name", ""))))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(userClient);
+    }
+
 
     @Test
     void getById_shouldReturn200() throws Exception {

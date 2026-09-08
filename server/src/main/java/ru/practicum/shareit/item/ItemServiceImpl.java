@@ -68,10 +68,10 @@ public class ItemServiceImpl implements ItemService {
                     "Item with id=" + itemId + " does not belong to user with id=" + userId);
         }
 
-        if (itemDto.getName() != null && !itemDto.getName().isBlank()) {
+        if (itemDto.getName() != null) {
             existing.setName(itemDto.getName());
         }
-        if (itemDto.getDescription() != null && !itemDto.getDescription().isBlank()) {
+        if (itemDto.getDescription() != null) {
             existing.setDescription(itemDto.getDescription());
         }
         if (itemDto.getAvailable() != null) {
@@ -154,9 +154,6 @@ public class ItemServiceImpl implements ItemService {
     @Override
     public List<ItemDto> search(String text) {
         log.info("Searching items by text='{}'", text);
-        if (text == null || text.isBlank()) {
-            return Collections.emptyList();
-        }
         return itemRepository.search(text).stream()
                 .map(ItemMapper::toItemDto)
                 .collect(Collectors.toList());

@@ -7,7 +7,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
 import ru.practicum.shareit.exception.ConflictException;
 import ru.practicum.shareit.exception.NotFoundException;
-import ru.practicum.shareit.exception.ValidationException;
 import ru.practicum.shareit.user.dto.UserDto;
 
 import java.util.List;
@@ -48,16 +47,6 @@ class UserServiceImplIntegrationTest {
 
         assertThatThrownBy(() -> userService.create(dto2))
                 .isInstanceOf(ConflictException.class);
-    }
-
-    @Test
-    void create_withInvalidEmail_shouldThrowValidation() {
-        UserDto dto = new UserDto();
-        dto.setName("John");
-        dto.setEmail("invalid-email");
-
-        assertThatThrownBy(() -> userService.create(dto))
-                .isInstanceOf(ValidationException.class);
     }
 
     @Test
@@ -106,7 +95,6 @@ class UserServiceImplIntegrationTest {
 
         UserDto updates = new UserDto();
         updates.setName("Updated Name");
-        // email is null, should not be updated
 
         UserDto updated = userService.update(saved.getId(), updates);
 

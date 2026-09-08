@@ -46,10 +46,6 @@ public class BookingServiceImpl implements BookingService {
             throw new NotFoundException("Owner cannot book his own item");
         }
 
-        if (dto.getEnd().isBefore(dto.getStart()) || dto.getEnd().equals(dto.getStart())) {
-            throw new ValidationException("End date must be after start date");
-        }
-
         Booking booking = BookingMapper.toBooking(dto, item, booker);
 
         Booking saved = bookingRepository.save(booking);

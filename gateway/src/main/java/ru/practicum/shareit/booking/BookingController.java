@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import ru.practicum.shareit.booking.dto.BookingRequestDto;
+import ru.practicum.shareit.booking.dto.BookingState;
 
 @RestController
 @RequestMapping(path = "/bookings")
@@ -20,6 +21,9 @@ public class BookingController {
     @PostMapping
     public ResponseEntity<Object> create(@RequestHeader("X-Sharer-User-Id") Long userId,
                                          @Valid @RequestBody BookingRequestDto dto) {
+        if (!dto.getEnd().isAfter(dto.getStart())) {
+            throw new IllegalArgumentException("End date must be after start date");
+        }
         return bookingClient.create(userId, dto);
     }
 
@@ -42,7 +46,9 @@ public class BookingController {
             @RequestParam(defaultValue = "ALL") String state,
             @PositiveOrZero @RequestParam(defaultValue = "0") Integer from,
             @Positive @RequestParam(defaultValue = "10") Integer size) {
-        return bookingClient.getAllByBooker(userId, state, from, size);
+        BookingState bookingState = BookingState.from(state)
+                .orElseThrow(() -> new IllegalArgumentException("Unknown state: " + state));
+        return bookingClient.getAllByBooker(userId, bookingState, from, size);
     }
 
     @GetMapping("/owner")
@@ -51,6 +57,8 @@ public class BookingController {
             @RequestParam(defaultValue = "ALL") String state,
             @PositiveOrZero @RequestParam(defaultValue = "0") Integer from,
             @Positive @RequestParam(defaultValue = "10") Integer size) {
-        return bookingClient.getAllByOwner(userId, state, from, size);
+        BookingState bookingState = BookingState.from(state)
+                .orElseThrow(() -> new IllegalArgumentException("Unknown state: " + state));
+        return bookingClient.getAllByOwner(userId, bookingState, from, size);
     }
 }

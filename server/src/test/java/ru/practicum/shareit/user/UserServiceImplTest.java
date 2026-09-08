@@ -8,7 +8,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
 import ru.practicum.shareit.exception.ConflictException;
 import ru.practicum.shareit.exception.NotFoundException;
-import ru.practicum.shareit.exception.ValidationException;
 import ru.practicum.shareit.user.dto.UserDto;
 import ru.practicum.shareit.user.model.User;
 
@@ -29,7 +28,6 @@ class UserServiceImplTest {
     @InjectMocks
     private UserServiceImpl userService;
 
-    // --- create ---
 
     @Test
     void create_withValidData_shouldReturnUserDto() {
@@ -45,50 +43,6 @@ class UserServiceImplTest {
         assertThat(result.getName()).isEqualTo("John");
         assertThat(result.getEmail()).isEqualTo("john@mail.com");
         verify(userRepository).save(any(User.class));
-    }
-
-    @Test
-    void create_withNullEmail_shouldThrowValidation() {
-        UserDto dto = makeUserDto(null, "John", null);
-
-        assertThatThrownBy(() -> userService.create(dto))
-                .isInstanceOf(ValidationException.class)
-                .hasMessageContaining("Invalid email format");
-
-        verify(userRepository, never()).save(any());
-    }
-
-    @Test
-    void create_withBlankEmail_shouldThrowValidation() {
-        UserDto dto = makeUserDto(null, "John", "   ");
-
-        assertThatThrownBy(() -> userService.create(dto))
-                .isInstanceOf(ValidationException.class)
-                .hasMessageContaining("Invalid email format");
-
-        verify(userRepository, never()).save(any());
-    }
-
-    @Test
-    void create_withEmptyEmail_shouldThrowValidation() {
-        UserDto dto = makeUserDto(null, "John", "");
-
-        assertThatThrownBy(() -> userService.create(dto))
-                .isInstanceOf(ValidationException.class)
-                .hasMessageContaining("Invalid email format");
-
-        verify(userRepository, never()).save(any());
-    }
-
-    @Test
-    void create_withEmailMissingAt_shouldThrowValidation() {
-        UserDto dto = makeUserDto(null, "John", "johnmail.com");
-
-        assertThatThrownBy(() -> userService.create(dto))
-                .isInstanceOf(ValidationException.class)
-                .hasMessageContaining("Invalid email format");
-
-        verify(userRepository, never()).save(any());
     }
 
     @Test
@@ -117,7 +71,6 @@ class UserServiceImplTest {
                 .hasMessageContaining("Email already exists: john@mail.com");
     }
 
-    // --- update ---
 
     @Test
     void update_withNewNameAndEmail_shouldUpdateBoth() {
@@ -168,7 +121,7 @@ class UserServiceImplTest {
     }
 
     @Test
-    void update_withSameEmail_shouldSkipEmailValidation() {
+    void update_withSameEmail_shouldSkipUniquenessCheck() {
         User existing = makeUser(1L, "John", "john@mail.com");
         UserDto updates = makeUserDto(null, "John Updated", "john@mail.com");
         User saved = makeUser(1L, "John Updated", "john@mail.com");
@@ -180,34 +133,6 @@ class UserServiceImplTest {
 
         assertThat(result.getName()).isEqualTo("John Updated");
         verify(userRepository, never()).existsByEmailExcludingId(anyString(), any());
-    }
-
-    @Test
-    void update_withBlankName_shouldNotUpdateName() {
-        User existing = makeUser(1L, "John", "john@mail.com");
-        UserDto updates = makeUserDto(null, "   ", null);
-        User saved = makeUser(1L, "John", "john@mail.com");
-
-        when(userRepository.findById(1L)).thenReturn(Optional.of(existing));
-        when(userRepository.save(any(User.class))).thenReturn(saved);
-
-        UserDto result = userService.update(1L, updates);
-
-        assertThat(result.getName()).isEqualTo("John");
-    }
-
-    @Test
-    void update_withEmptyName_shouldNotUpdateName() {
-        User existing = makeUser(1L, "John", "john@mail.com");
-        UserDto updates = makeUserDto(null, "", null);
-        User saved = makeUser(1L, "John", "john@mail.com");
-
-        when(userRepository.findById(1L)).thenReturn(Optional.of(existing));
-        when(userRepository.save(any(User.class))).thenReturn(saved);
-
-        UserDto result = userService.update(1L, updates);
-
-        assertThat(result.getName()).isEqualTo("John");
     }
 
     @Test
@@ -253,20 +178,6 @@ class UserServiceImplTest {
     }
 
     @Test
-    void update_withInvalidEmailFormat_shouldThrowValidation() {
-        User existing = makeUser(1L, "John", "john@mail.com");
-        UserDto updates = makeUserDto(null, null, "invalid-email");
-
-        when(userRepository.findById(1L)).thenReturn(Optional.of(existing));
-
-        assertThatThrownBy(() -> userService.update(1L, updates))
-                .isInstanceOf(ValidationException.class)
-                .hasMessageContaining("Invalid email format");
-
-        verify(userRepository, never()).save(any());
-    }
-
-    @Test
     void update_whenDatabaseThrowsConstraintViolation_shouldThrowConflict() {
         User existing = makeUser(1L, "John", "john@mail.com");
         UserDto updates = makeUserDto(null, null, "newemail@mail.com");
@@ -280,7 +191,6 @@ class UserServiceImplTest {
                 .isInstanceOf(ConflictException.class);
     }
 
-    // --- getById ---
 
     @Test
     void getById_existingUser_shouldReturnUserDto() {
@@ -304,7 +214,6 @@ class UserServiceImplTest {
                 .hasMessageContaining("User not found with id: 99");
     }
 
-    // --- getAll ---
 
     @Test
     void getAll_withMultipleUsers_shouldReturnAll() {
@@ -331,7 +240,6 @@ class UserServiceImplTest {
         assertThat(result).isEmpty();
     }
 
-    // --- delete ---
 
     @Test
     void delete_existingUser_shouldDeleteSuccessfully() {
@@ -357,7 +265,6 @@ class UserServiceImplTest {
         verify(userRepository, never()).deleteById(any());
     }
 
-    // --- helpers ---
 
     private User makeUser(Long id, String name, String email) {
         User user = new User();

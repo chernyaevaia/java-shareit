@@ -3,6 +3,7 @@ package ru.practicum.shareit.booking;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.boot.web.client.RestTemplateBuilder;
@@ -11,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestTemplate;
 import ru.practicum.shareit.booking.dto.BookingRequestDto;
+import ru.practicum.shareit.booking.dto.BookingState;
 
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -79,26 +81,50 @@ class BookingClientTest {
     }
 
     @Test
-    void getAllByBooker_shouldCallGetWithCorrectPath() {
+    void getAllByBooker_shouldCallGetWithCorrectPathAndStateName() {
         ResponseEntity<Object> expectedResponse = ResponseEntity.ok("bookings");
 
         when(restTemplate.exchange(eq("?state={state}&from={from}&size={size}"), eq(HttpMethod.GET), any(), eq(Object.class), any(Map.class)))
                 .thenReturn(expectedResponse);
 
-        ResponseEntity<Object> response = bookingClient.getAllByBooker(1L, "ALL", 0, 10);
+        ResponseEntity<Object> response = bookingClient.getAllByBooker(1L, BookingState.ALL, 0, 10);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        ArgumentCaptor<Map<String, Object>> paramsCaptor = ArgumentCaptor.forClass(Map.class);
+        org.mockito.Mockito.verify(restTemplate).exchange(
+                eq("?state={state}&from={from}&size={size}"),
+                eq(HttpMethod.GET),
+                any(),
+                eq(Object.class),
+                paramsCaptor.capture());
+        assertThat(paramsCaptor.getValue())
+                .containsEntry("state", "ALL")
+                .containsEntry("from", 0)
+                .containsEntry("size", 10);
     }
 
     @Test
-    void getAllByOwner_shouldCallGetWithCorrectPath() {
+    void getAllByOwner_shouldCallGetWithCorrectPathAndStateName() {
         ResponseEntity<Object> expectedResponse = ResponseEntity.ok("owner bookings");
 
         when(restTemplate.exchange(eq("/owner?state={state}&from={from}&size={size}"), eq(HttpMethod.GET), any(), eq(Object.class), any(Map.class)))
                 .thenReturn(expectedResponse);
 
-        ResponseEntity<Object> response = bookingClient.getAllByOwner(1L, "ALL", 0, 10);
+        ResponseEntity<Object> response = bookingClient.getAllByOwner(1L, BookingState.WAITING, 5, 20);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        ArgumentCaptor<Map<String, Object>> paramsCaptor = ArgumentCaptor.forClass(Map.class);
+        org.mockito.Mockito.verify(restTemplate).exchange(
+                eq("/owner?state={state}&from={from}&size={size}"),
+                eq(HttpMethod.GET),
+                any(),
+                eq(Object.class),
+                paramsCaptor.capture());
+        assertThat(paramsCaptor.getValue())
+                .containsEntry("state", "WAITING")
+                .containsEntry("from", 5)
+                .containsEntry("size", 20);
     }
 }

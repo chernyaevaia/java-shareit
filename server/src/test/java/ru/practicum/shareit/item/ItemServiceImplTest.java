@@ -90,19 +90,20 @@ class ItemServiceImplTest {
     }
 
     @Test
-    void update_withBlankName_shouldKeepOldName() {
+    void update_withValidPatch_shouldUpdateProvidedFields() {
         User owner = makeUser(1L);
         Item item = makeItem(1L, owner);
         when(itemRepository.findById(1L)).thenReturn(Optional.of(item));
         when(itemRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         ItemDto patch = new ItemDto();
-        patch.setName("  ");
+        patch.setName("New name");
         patch.setAvailable(false);
 
         ItemDto result = itemService.update(1L, 1L, patch);
 
-        assertThat(result.getName()).isEqualTo("Drill");
+        assertThat(result.getName()).isEqualTo("New name");
+        assertThat(result.getDescription()).isEqualTo("desc");
         assertThat(result.getAvailable()).isFalse();
     }
 
@@ -138,10 +139,16 @@ class ItemServiceImplTest {
     }
 
     @Test
-    void search_blankText_shouldReturnEmpty() {
-        assertThat(itemService.search("")).isEmpty();
-        assertThat(itemService.search(null)).isEmpty();
-        verifyNoInteractions(itemRepository);
+    void search_withText_shouldDelegateToRepository() {
+        User owner = makeUser(1L);
+        Item item = makeItem(1L, owner);
+        when(itemRepository.search("drill")).thenReturn(List.of(item));
+
+        List<ItemDto> result = itemService.search("drill");
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getName()).isEqualTo("Drill");
+        verify(itemRepository).search("drill");
     }
 
     @Test
